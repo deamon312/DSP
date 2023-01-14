@@ -8,14 +8,14 @@ signal = y;
 
 %noise = randn(1000,1);
 filt = dsp.FIRFilter;
-filt.Numerator = fir1(11,0.4);
+filt.Numerator = fir1(11,0.3);
 %fnoise = filt(noise);
 d = signal + noise;
 
-%coeffs = (filt.Numerator).'-0.01; % Set the filter initial conditions.
-mu = 6; % Set the step size for algorithm updating.
-coeffs = ones(1,21);
-lms = dsp.LMSFilter(21,'StepSize',mu,'InitialConditions',coeffs);
+coeffs = (filt.Numerator).'-0.01; % Set the filter initial conditions.
+mu = 0.01; % Set the step size for algorithm updating.
+%coeffs = ones(1,21);
+lms = dsp.LMSFilter(12,'StepSize',mu,'InitialConditions',coeffs);
 [~,e,w] = lms(noise,d);
 subplot(2,1,1)
 plot(e);
