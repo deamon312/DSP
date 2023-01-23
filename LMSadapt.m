@@ -1,7 +1,6 @@
 function [yn,en,S] = LMSadapt(un,dn,S)
     M = length(S.coeffs);
     mu = S.step;
-    AdaptStart = S.AdaptStart;
     w = S.coeffs;
     u = zeros(M,1);
     ITER = length(un);
@@ -12,7 +11,6 @@ function [yn,en,S] = LMSadapt(un,dn,S)
         yn(n) = w'*u;
         en(n) = dn(n) - yn(n);
         w = w + 2*(mu*en(n))*u;
-        S.iter = S.iter + 1;
     end
     
     S.coeffs = w;
