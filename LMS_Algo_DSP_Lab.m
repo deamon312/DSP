@@ -21,8 +21,8 @@ clc
 clear all 
 close all
 % Load the signal and the corrupting factor of the signal
-[y,~] = audioread('Signal.wav');
-[noise,Fs] = audioread('Noise.wav');
+[y,Fs] = audioread('Signal.wav');
+[noise,~] = audioread('Noise1.wav');
 signal =y;
 % Set the noise as a random configuration
 index = randi(numel(noise) - numel(y) + 1,1,1);
@@ -42,7 +42,7 @@ xlabel('Time[s]');
 ylabel('Amplitude[V]');
 
 subplot(3,1,2)
-plot(noise);
+plot(noiseSegment);
 title('Noise signal');
 xlabel('Time[s]');
 ylabel('Amplitude[V]');
@@ -55,23 +55,36 @@ ylabel('Amplitude[V]');
 
 %% LMS Adapt Filter
 % Set the step size for algorithm updating.
-mu = 0.01;
+mu = 0.8;
 % Filter length (num of taps)
-M = 16; 
+M = 35; 
 % Set the start point of the weights of the adaptiv filter
 coeffs = zeros(1,M);
 % Create struct in a new variable (external funciton)
 S = LMSinit(zeros(M,1),mu);
 % Perform LMS-algo. + export set of weights and coeffs(external funciton)
-[~,e,S] = LMSadapt(noise,d,S);
-%lms_nonnormalized = dsp.LMSFilter(M,'StepSize',mu,...
-%    'Method','LMS','InitialConditions',coeffs);
-%[~,e,w] = lms_nonnormalized(noise,d);
+[~,e,S] = LMSadapt(noiseSegment,d,S);
+% lms_nonnormalized = dsp.LMSFilter(M,'StepSize',mu,...
+%     'Method','LMS','InitialConditions',coeffs);
+% [~,e,w] = lms_nonnormalized(noise,d);
 e = e';
 w = S.coeffs;
-
-%% Figure of three 'time X amp' plots
 figure(2)
+freqz(w)
+%% Spectogram
+figure(7)
+fs=Fs;
+subplot(3,1,1)
+spectrogram(y,256,[],fs,'yaxis' );
+title('Original signal');
+subplot(3,1,2)
+spectrogram(e,256,[],fs,'yaxis' );
+title('Filtered signal');
+subplot(3,1,3)
+spectrogram(noiseSegment,256,[],fs,'yaxis' );
+title('Noise signal');
+%% Figure of three 'time X amp' plots
+figure(3)
 subplot(3,1,1)
 plot(abs(e-signal));% Filt.effectiveness (wieghted signal-origin signal)
 title('Indication of the effectiveness of the LMS');
@@ -91,7 +104,7 @@ xlabel('Time[s]');
 ylabel('Amplitude[V]');
 
 % Figure of signal and filter result combined
-figure(3)
+figure(4)
 plot([e,signal]);% Filt.result and original siganl for comparison
 legend('Result of noise cancellation','Actual signal');
 title('Indication of the effectiveness of the LMS');
@@ -99,7 +112,7 @@ xlabel('Time[s]');
 ylabel('Amplitude[V]');
 
 % Figure of the coeffs and weights in one stem
-figure(4)
+figure(5)
 stem(coeffs)
 hold on
 stem(w)
@@ -108,9 +121,9 @@ title('Stem figure of the weights of the FIR sequence');
 xlabel('Taps');
 ylabel('Coeff');
 
-% Figure of the FFT of the signals 'amp X freq'
-figure(5)
-limit1 = [-4e3,4e3];% Relevant spectrum of regular speech frequency
+%% Figure of the FFT of the signals 'amp X freq'
+figure(6)
+limit1 = [-5e3,5e3];% Relevant spectrum of regular speech frequency
 subplot(4,1,1)
 [FFT_signal_amp,FFT_freq] = FFT(Fs,signal,0);
 plot(FFT_freq,FFT_signal_amp)
@@ -142,8 +155,6 @@ xlim(limit1)
 title('filter results in frequency domain');
 xlabel('Frequency[f]');
 ylabel('Amplitude[V]');
-
-std(FFT_signal_amp-FFT_filt_amp)/mean(FFT_signal_amp)
 %%
 sound(e,44100)
 %%
