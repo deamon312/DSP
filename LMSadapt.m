@@ -10,8 +10,7 @@ function [yn,en,S] = LMSadapt(un,dn,S)
         u = [un(n); u(1:end-1)];
         yn(n) = w'*u;
         en(n) = dn(n) - yn(n);
-        w = w + 2*(mu*en(n))*u;
+        w = w + (mu*en(n))*u;
     end
-    
     S.coeffs = w;
     end
