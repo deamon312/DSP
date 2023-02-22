@@ -1,42 +1,55 @@
-%% In this model we will show the process of canceling noise from corrupted 
+% In this model we will show the process of canceling noise from corrupted 
 % signal using an adaptive filter applied by LMS algorithem as an 
 % implementation to an article called:
 % 'Simulation for noise cancellation using LMS adaptive filter.'
 %% The process included:
-% 1. Import and export original unnoised and noise signal as a wav file.
+% 1. Import and export noise free and noise signal as a wav file.
 % 2. Implement noise components on the signal file randomly.
-% 3. Define original functions. functions of:
-%       Creating a struct for a variable
-%       LMS algorithm execution
-%       FFT algorithm execution
-% 4. Create an adaptive filter model and applying it on the signals
-% 5. Graphs figures of all relevant signals including:
-%       Algorithm efficiency feedback
-%       All relevant signals
-%       All the graphs showed in time domain and frequency domain
-%       Stem figure of the coeffs and weights of the model
+% 3. Plot corrupted ,noise free and noise signal
+% 4. Run LMS algorithm according to:
+%       Diffirent Length of FIR filter (M)
+%       Diffirent Step Size (mu)
+% 5. Plot frequency responce of the last itteration coefficents 
+% 6. Plot Spectogram of filtered ,noise free and corrupted signals
+% 7. Plots:
+%       Absolute error beetwen noise free and filtered signal
+%       Noise free signal
+%       Filtered signal
+% 8. Relative error beetwen original and filtered signal
+% 9. Plots of signal and filter result combined
+%10. Plots of the coeffs and weights:
+%       Initial Weights,Adapted Final Weights
+%       Coefficient Trajectories       
+%11. FFT:
+%       Noise free signal
+%       Filtered signal
+%       Corrupted signal
+%       Noise signal
 
-
-clc
-clear all 
 close all
-% Load the free noise signal and noise
-[y,Fs] = audioread('Signal.wav');
+clear all 
+
+%% Load noise free and noise signals
+[signal,Fs] = audioread('Signal.wav');
 [noise,~] = audioread('Noise1.wav');
-signal =y;
+
 % Set the noise as a random configuration
-index = randi(numel(noise) - numel(y) + 1,1,1);
-noiseSegment = noise(index:index + numel(y) - 1);
+index = randi(numel(noise) - numel(signal) + 1,1,1);
+noiseSegment = noise(index:index + numel(signal) - 1);
+
 % Calculate the power components of the siganls
-% Set the noise power such that the signal-to-noise ratio (SNR)
 speechPower = sum(signal.^2);
 noisePower = sum(noiseSegment.^2);
-% Define corrupted signal  with noise factor
-d = y + sqrt(speechPower/noisePower)*noiseSegment;
-%% Plot corrupted signal ,noise free signal and noise 
+noise_factor =sqrt(speechPower/noisePower); % snr
+
+% Define corrupted signal with noise factor
+d = signal + noise_factor*noiseSegment;
+
+%% Plot corrupted ,noise free and noise signal
 figure(1)
 dt = 1/Fs; 
-t = 0:dt:(length(y)*dt)-dt; % create time vector
+t = 0:dt:(length(signal)-1)*dt; % create time vector
+
 subplot(3,1,1)
 plot(t,signal);
 title('Noise free signal');
@@ -45,7 +58,7 @@ ylabel('Amplitude');
 
 subplot(3,1,2)
 plot(t,noiseSegment);
-title('Noise');
+title('Noise signal');
 xlabel('Time[s]');
 ylabel('Amplitude');
 
@@ -54,125 +67,146 @@ plot(t,d);
 title('Corrupted signal');
 xlabel('Time[s]');
 ylabel('Amplitude');
-
+linkaxes([subplot(3,1,1) subplot(3,1,2) subplot(3,1,3)], 'xy');
 %% LMS Adapt Filter
-% Set the step size for algorithm updating.
-mu = 0.3;
-% Filter length (num of taps)
-M = 11; 
-% Set the start point of the weights of the adaptiv filter
-coeffs = zeros(1,M);
-% Create struct in a new variable (external funciton)
-S = LMSinit(zeros(M,1),mu);
-% Perform LMS-algo. + export set of weights and coeffs(external funciton)
+mu = 0.1; % Set the step size
+M = 5;  % Filter length (num of taps)
+% Initialization of weights 
+coeffs = zeros(M,1); % column vector of init weights
+S.coeffs = coeffs; % insert weights to struct
+S.step = mu; % insert step size to the struct
+
+% Perform LMS-algo 
 [~,e,S] = LMSadapt(noiseSegment,d,S);
-% lms_nonnormalized = dsp.LMSFilter(M,'StepSize',mu,...
-%      'Method','LMS','InitialConditions',coeffs);
-% [~,e,w] = lms_nonnormalized(noiseSegment,d);
-e = e';
 w = S.coeffs;
+% lms_nonnormalized = dsp.LMSFilter(M,'StepSize',mu,...
+%        'Method','LMS','InitialConditions',coeffs);
+% [~,e,w] = lms_nonnormalized(noiseSegment,d);
 %% Frequency Response of Adaptive filter
 figure(2)
 [h,f] = freqz(w,1,[],Fs);
 subplot(2,1,1);
-plot(f,20*log10(abs(h))); % we will use 20log10() for ploting the mag. response in dB 
+hold on
+plot(f,20*log10(abs(h)),'DisplayName',string(mu)); % we will use 20log10() for ploting the mag. response in dB 
 title('Magnitude response')
 grid on % turning the grid on
 xlabel('Frequency(Hz)') 
 ylabel('Magnitude(dB)')
+legend
 subplot(2,1,2);
-plot(f,rad2deg(angle(h))); 
+hold on
+legend
+plot(f,rad2deg(angle(h)),'DisplayName',string(mu)); 
 title('Phase response')
 grid on
 xlabel('Frequency(Hz)')
-ylabel('phase(degree)')
+ylabel('Phase(degree)')
 %% Spectogram
-figure(7)
-subplot(3,1,1)
-spectrogram(y,128,120,[],Fs,'yaxis' );
-title('Original signal');
-subplot(3,1,2)
-spectrogram(e,128,120,[],Fs,'yaxis' );
-title('Filtered signal');
-subplot(3,1,3)
-spectrogram(noiseSegment,128,120,[],Fs,'yaxis' );
-title('Noise signal');
-%view(0,0)
-%% Figure of three 'time X amp' plots
 figure(3)
 subplot(3,1,1)
-plot(t,abs(e-signal));% Filt.effectiveness (wieghted signal-origin signal)
-title('Indication of the effectiveness of the LMS');
+spectrogram(signal,128,120,[],Fs,'yaxis' );
+title('Original signal');
+subplot(3,1,2)
+spectrogram(d,128,120,[],Fs,'yaxis' );
+title('Corrupted signal');
+subplot(3,1,3)
+spectrogram(e,128,120,[],Fs,'yaxis' );
+title('Filtered signal');
+linkaxes([subplot(3,1,1) subplot(3,1,2) subplot(3,1,3)], 'xy');
+%view(0,0)
+
+%% Time Domain plots
+figure(4)
+subplot(3,1,1)
+hold on
+plot(t,e-signal,'DisplayName',string(mu));% Filt.effectiveness 
+title('Error beetwen noise free and filtered signals');
 xlabel('Time[s]');
-ylabel('Amplitude[V]');
+ylabel('Amplitude');
+legend
+disp(['Relative error beetwen noise free and filtered signal :',num2str(norm(e-signal)/norm(signal)*100) ,' %'])
 
 subplot(3,1,2)
 plot(t,signal);
-title('Original signal in time domain');
+title('Noise free signal');
 xlabel('Time[s]');
-ylabel('Amplitude[V]');
+ylabel('Amplitude');
 
 subplot(3,1,3)
 plot(t,e);
 title('Filtered signal');
 xlabel('Time[s]');
-ylabel('Amplitude[V]');
-
-% Figure of signal and filter result combined
-figure(4)
-plot(t,e,t,signal);% Filt.result and original siganl for comparison
-legend('Result of noise cancellation','Actual signal');
-title('Indication of the effectiveness of the LMS');
-xlabel('Time[s]');
-ylabel('Amplitude[V]');
-
-% Figure of the coeffs and weights in one stem
+ylabel('Amplitude');
+linkaxes([subplot(3,1,1) subplot(3,1,2) subplot(3,1,3)], 'xy');
+% Combined plot of noise free and filter signal
 figure(5)
+plot(t,e,t,signal);
+legend('Filtered signal','Noise free signal');
+title('Result of noise cancellation');
+xlabel('Time[s]');
+ylabel('Amplitude');
+
+%% Plot of the coeffs and weights
+figure(6)
+subplot(2,1,1)
 stem(coeffs)
 hold on
 stem(w)
-legend('Initial Weights','Adapted Weights');
-title('Stem figure of the weights of the FIR sequence');
+legend('Initial Weights','Adapted Final Weights');
+title('Coefficents of the FIR filter');
 xlabel('Taps');
 ylabel('Coeff');
+hold off
 
-%% Figure of the FFT of the signals 'amp X freq'
-figure(6)
-limit1 = [-4e3,4e3];% Relevant spectrum of regular speech frequency
+subplot(2,1,2)
+nn = length(e);
+plot(1:nn,S.W(:,1:nn))
+title('Coefficient Trajectories');
+xlabel('Iteration');
+ylabel('Coeff');
+legend(string(1:M),'Location','best')
+legend('boxoff')
+%% Frequency domain plots
+figure(7)
+limit = [-4e3,4e3];% Relevant spectrum of regular speech frequency
 subplot(4,1,1)
-[FFT_signal_amp,FFT_freq] = FFT(Fs,signal,0);
-plot(FFT_freq,FFT_signal_amp)
-xlim(limit1)
-title('origin signal in frequency domain');
+[FFT_amp,FFT_freq] = FFT(Fs,signal,0);
+plot(FFT_freq,FFT_amp)
+xlim(limit)
+title('Noise free signal');
 xlabel('Frequency[Hz]');
 ylabel('Amplitude');
 
 subplot(4,1,2)
-[FFT_amp,FFT_freq] = FFT(Fs,noise,0);
-plot(FFT_freq,FFT_amp)
-xlim(limit1)
-title('original noise in freq domain');
+[FFT_amp_n,FFT_freq] = FFT(Fs,noise,0);
+plot(FFT_freq,FFT_amp_n)
+xlim(limit)
+title('Noise Signal');
 xlabel('Frequency[Hz]');
 ylabel('Amplitude');
 
 subplot(4,1,3)
-[FFT_amp,FFT_freq] = FFT(Fs,d,0);
-plot(FFT_freq,FFT_amp)
-xlim(limit1)
-title('noisy signal in frequency domain');
+[FFT_amp_d,FFT_freq] = FFT(Fs,d,0);
+plot(FFT_freq,FFT_amp_d)
+xlim(limit)
+title('Corrupted signal');
 xlabel('Frequency[Hz]');
 ylabel('Amplitude');
 
 subplot(4,1,4)
-[FFT_filt_amp,FFT_freq] = FFT(Fs,e,0);
-plot(FFT_freq,FFT_filt_amp)
-xlim(limit1)
-title('filter results in frequency domain');
+[FFT_amp_filt,FFT_freq] = FFT(Fs,e,0);
+plot(FFT_freq,FFT_amp_filt)
+xlim(limit)
+title('Filter signal');
 xlabel('Frequency[Hz]');
 ylabel('Amplitude');
+
+linkaxes([subplot(4,1,1) subplot(4,1,2) subplot(4,1,3) subplot(4,1,4)], 'x');
 %%
 sound(e,44100)
 %%
 sound(d,44100)
 %%
 sound(signal,44100)
+%%
+sound(noise,44100)
